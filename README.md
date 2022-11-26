@@ -1,4 +1,4 @@
-# tetracube-gateway Project
+# TetraCube Gateway Service
 
 This project uses Quarkus, the Supersonic Subatomic Java Framework.
 
