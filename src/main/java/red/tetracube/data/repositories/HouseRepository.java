@@ -23,7 +23,7 @@ public class HouseRepository {
                 session.createQuery("""
                                         select count(house.name) > 0
                                         from House house
-                                        where house.name = :name
+                                        where lower(house.name) = lower(:name)
                                         """,
                                 Boolean.class
                         )
