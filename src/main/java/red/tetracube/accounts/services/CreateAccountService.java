@@ -35,7 +35,7 @@ public class CreateAccountService {
     public Uni<AccountDTO> createAccount(CreateAccountDTO createAccountDTO) {
         var authenticationTokenUni = authenticationTokenRepository.getByToken(createAccountDTO.authenticationToken);
         var userExistsUni = accountRepository.existsByName(createAccountDTO.username);
-        var houseUni = houseRepository.getById(createAccountDTO.houseId);
+        var houseUni = houseRepository.getByName(createAccountDTO.houseName);
         return Uni.combine().all().unis(authenticationTokenUni, userExistsUni, houseUni)
                 .collectFailures()
                 .asTuple()

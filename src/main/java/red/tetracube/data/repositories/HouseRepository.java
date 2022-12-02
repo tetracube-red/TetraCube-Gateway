@@ -18,16 +18,16 @@ public class HouseRepository {
         this.sessionFactory = sessionFactory;
     }
 
-    public Uni<House> getById(UUID id) {
+    public Uni<House> getByName(String name) {
         var sessionUni = sessionFactory.openSession();
         return sessionUni.flatMap(session ->
                 session.createQuery("""
                                         from House house
-                                        where house.id = :id
+                                        where house.name = :name
                                         """,
                                 House.class
                         )
-                        .setParameter("id", id)
+                        .setParameter("name", name)
                         .getSingleResultOrNull()
                         .eventually(session::close)
         );

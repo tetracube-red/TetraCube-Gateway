@@ -20,5 +20,6 @@ public class CreateAccountDTO {
 
     @JsonProperty
     @NotNull
-    public UUID houseId;
+    @NotEmpty
+    public String houseName;
 }
