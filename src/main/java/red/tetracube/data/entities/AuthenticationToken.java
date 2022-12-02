@@ -51,4 +51,12 @@ public class AuthenticationToken {
     public Timestamp getValidUntil() {
         return validUntil;
     }
+
+    public Boolean getInUse() {
+        return inUse;
+    }
+
+    public void setAsInUse() {
+        this.inUse = true;
+    }
 }

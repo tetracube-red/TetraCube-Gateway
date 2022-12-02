@@ -22,11 +22,25 @@ public class Account {
     @ManyToOne(fetch = FetchType.LAZY, targetEntity = AuthenticationToken.class)
     private AuthenticationToken authenticationToken;
 
+    public Account() {
+    }
+
+    public Account(String name, House house, AuthenticationToken authenticationToken) {
+        this.id = UUID.randomUUID();
+        this.name = name;
+        this.house = house;
+        this.authenticationToken = authenticationToken;
+    }
+
     public UUID getId() {
         return id;
     }
 
     public String getName() {
         return name;
+    }
+
+    public AuthenticationToken getAuthenticationToken() {
+        return authenticationToken;
     }
 }

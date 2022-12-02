@@ -6,6 +6,7 @@ import red.tetracube.data.entities.House;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
+import java.util.UUID;
 
 @ApplicationScoped
 public class HouseRepository {
@@ -15,6 +16,21 @@ public class HouseRepository {
     @Inject
     public HouseRepository(Mutiny.SessionFactory sessionFactory) {
         this.sessionFactory = sessionFactory;
+    }
+
+    public Uni<House> getById(UUID id) {
+        var sessionUni = sessionFactory.openSession();
+        return sessionUni.flatMap(session ->
+                session.createQuery("""
+                                        from House house
+                                        where house.id = :id
+                                        """,
+                                House.class
+                        )
+                        .setParameter("id", id)
+                        .getSingleResultOrNull()
+                        .eventually(session::close)
+        );
     }
 
     public Uni<Boolean> existsByName(String name) {

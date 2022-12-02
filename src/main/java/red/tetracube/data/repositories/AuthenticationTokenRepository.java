@@ -25,4 +25,20 @@ public class AuthenticationTokenRepository {
                         .eventually(session::close)
         );
     }
+
+    public Uni<AuthenticationToken> getByToken(String authenticationToken) {
+        var sessionUni = sessionFactory.openSession();
+        return sessionUni.flatMap(session ->
+                session.createQuery("""
+                                        from AuthenticationToken authToken
+                                        where authToken.token = :token
+                                        """,
+                                AuthenticationToken.class
+                        )
+                        .setParameter("token", authenticationToken)
+                        .setMaxResults(1)
+                        .getSingleResultOrNull()
+                        .eventually(session::close)
+        );
+    }
 }
