@@ -4,8 +4,8 @@ import javax.persistence.*;
 import java.util.UUID;
 
 @Entity
-@Table(name = "accounts")
-public class Account {
+@Table(name = "users")
+public class User {
 
     @Id
     @Column(name = "id", nullable = false)
@@ -22,10 +22,10 @@ public class Account {
     @ManyToOne(fetch = FetchType.LAZY, targetEntity = AuthenticationToken.class)
     private AuthenticationToken authenticationToken;
 
-    public Account() {
+    public User() {
     }
 
-    public Account(String name, House house, AuthenticationToken authenticationToken) {
+    public User(String name, House house, AuthenticationToken authenticationToken) {
         this.id = UUID.randomUUID();
         this.name = name;
         this.house = house;
@@ -42,5 +42,9 @@ public class Account {
 
     public AuthenticationToken getAuthenticationToken() {
         return authenticationToken;
+    }
+
+    public House getHouse() {
+        return house;
     }
 }

@@ -1,13 +1,12 @@
-package red.tetracube.accounts.dto;
+package red.tetracube.users.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.smallrye.common.constraint.NotNull;
-import red.tetracube.data.entities.Account;
 
 import javax.validation.constraints.NotEmpty;
 import java.util.UUID;
 
-public class AccountDTO {
+public class UserLoginResponse {
 
     @JsonProperty
     @NotNull
@@ -18,8 +17,8 @@ public class AccountDTO {
     @NotEmpty
     public String name;
 
-    public void fromEntity(Account account) {
-        this.id = account.getId();
-        this.name = account.getName();
-    }
+    @JsonProperty
+    @NotNull
+    @NotEmpty
+    public String token;
 }

@@ -2,7 +2,6 @@ package red.tetracube.data.entities;
 
 import javax.persistence.*;
 import java.sql.Timestamp;
-import java.time.Instant;
 import java.util.Calendar;
 import java.util.UUID;
 
@@ -29,10 +28,14 @@ public class AuthenticationToken {
     @Column(name = "in_use", nullable = false)
     private Boolean inUse;
 
+    @JoinColumn(name = "id_house", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY, targetEntity = House.class)
+    private House house;
+
     public AuthenticationToken() {
     }
 
-    public AuthenticationToken(String token) {
+    public AuthenticationToken(String token, House house) {
         var now = Calendar.getInstance();
         var validUntil = Calendar.getInstance();
         validUntil.add(Calendar.YEAR, 1);
@@ -42,6 +45,7 @@ public class AuthenticationToken {
         this.validUntil = new Timestamp(validUntil.getTimeInMillis());
         this.isValid = true;
         this.inUse = false;
+        this.house = house;
     }
 
     public String getToken() {
@@ -58,5 +62,9 @@ public class AuthenticationToken {
 
     public void setAsInUse() {
         this.inUse = true;
+    }
+
+    public House getHouse() {
+        return house;
     }
 }
