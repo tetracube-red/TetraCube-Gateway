@@ -1,20 +1,18 @@
-package red.tetracube.users.services;
+package red.tetracube.core;
 
 import io.smallrye.jwt.build.Jwt;
-import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.tuples.Tuple2;
 import io.smallrye.mutiny.unchecked.Unchecked;
-import red.tetracube.core.enumerations.FailureReason;
-import red.tetracube.core.exceptions.PipelineInterruptionException;
-import red.tetracube.core.models.Result;
-import red.tetracube.data.entities.User;
 import red.tetracube.configuration.properties.BearerTokenConfigurationProperties;
+import red.tetracube.core.enumerations.FailureReason;
+import red.tetracube.core.models.Result;
 import red.tetracube.data.entities.AuthenticationToken;
 import red.tetracube.data.entities.House;
-import red.tetracube.data.repositories.UserRepository;
+import red.tetracube.data.entities.User;
 import red.tetracube.data.repositories.AuthenticationTokenRepository;
 import red.tetracube.data.repositories.HouseRepository;
+import red.tetracube.data.repositories.UserRepository;
 import red.tetracube.users.dto.UserLoginRequest;
 import red.tetracube.users.dto.UserLoginResponse;
 
@@ -25,8 +23,6 @@ import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 
 @ApplicationScoped
 public class UserLoginService {
@@ -49,38 +45,34 @@ public class UserLoginService {
     public Uni<Result<UserLoginResponse>> tryToLoginUser(UserLoginRequest userLoginRequest) {
         var authenticationTokenUni = authenticationTokenRepository.getByToken(userLoginRequest.authenticationCode);
         var userFromAuthenticationTokenUni = userRepository.getUserFromAuthenticationToken(userLoginRequest.authenticationCode);
-        var pipelineSurvivingObjects = new ConcurrentHashMap<String, Object>();
+        //    var userExistsUni =
+        /*
+
+                    var validateUsername = userRepository.existsByName(userLoginRequest.username)
+                            .map(userExistsByNameResponse -> this.validateAccountExists(optionalUserFromToken, userExistsByNameResponse));
+         */
+        // var houseUni = authenticationTokenUni.flatMap(authenticationToken -> houseRepository.getById(authenticationToken.getHouse().getId()));
         return Uni.combine().all().unis(authenticationTokenUni, userFromAuthenticationTokenUni)
                 .collectFailures()
                 .asTuple()
                 .map(responses -> {
                     var optionalAuthenticationToken = responses.getItem1();
                     var optionalUserFromToken = responses.getItem2();
-                    pipelineSurvivingObjects.put("optionalUserFromToken", optionalUserFromToken);
-                    pipelineSurvivingObjects.put("optionalAuthenticationToken", optionalAuthenticationToken);
                     return this.validateAuthenticationToken(optionalAuthenticationToken, optionalUserFromToken, userLoginRequest.username);
                 })
                 .invoke(Unchecked.consumer(authTokenValidationResponse -> {
                     if (authTokenValidationResponse.isPresent()) {
-                        throw new PipelineInterruptionException(authTokenValidationResponse.get());
+                        throw new ValidationException();
                     }
                 }))
-                .withContext()
                 .flatMap(authTokenValidationResponse -> {
-                    var optionalUserFromToken = (Optional<User>) pipelineSurvivingObjects.get("optionalUserFromToken");
-                    return userRepository.existsByName(userLoginRequest.username)
+                   return userRepository.existsByName(userLoginRequest.username)
                             .map(userExistsByNameResponse -> this.validateAccountExists(optionalUserFromToken, userExistsByNameResponse));
                 })
-                .invoke(Unchecked.consumer(authTokenValidationResponse -> {
-                    if (authTokenValidationResponse.isPresent()) {
-                        throw new PipelineInterruptionException(authTokenValidationResponse.get());
-                    }
-                }))
-                .map(ignored -> {
-                    var optionalUserFromAuthenticationToken = (Optional<User>) pipelineSurvivingObjects.get("optionalUserFromToken");
-                    var optionalAuthenticationToken = (Optional<AuthenticationToken>) pipelineSurvivingObjects.get("optionalAuthenticationToken");
-                    var user = optionalUserFromAuthenticationToken.isEmpty()
-                            ? createUserEntity(userLoginRequest.username, optionalAuthenticationToken.get(), unis.getItem3().get())
+                .<Tuple2<User, Boolean>>map(unis -> {
+                    var optionalUserFromAuthenticationToken = unis.getItem2();
+                    var user = optionalUserFromAuthenticationToken == null
+                            ? createUserEntity(userLoginRequest.username, unis.getItem1(), unis.getItem3().get())
                             : optionalUserFromAuthenticationToken;
                     var isNew = optionalUserFromAuthenticationToken == null;
                     return Tuple2.of(user, isNew);

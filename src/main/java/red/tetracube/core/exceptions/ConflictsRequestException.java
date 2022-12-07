@@ -1,4 +1,4 @@
-package red.tetracube.exceptions;
+package red.tetracube.core.exceptions;
 
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.core.Response;

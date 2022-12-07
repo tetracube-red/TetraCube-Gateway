@@ -1,4 +1,4 @@
-package red.tetracube.house.dto;
+package red.tetracube.house.payloads;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.smallrye.common.constraint.NotNull;
@@ -7,7 +7,7 @@ import red.tetracube.data.entities.House;
 import javax.validation.constraints.NotEmpty;
 import java.util.UUID;
 
-public class HouseDTO {
+public class HouseCreateResponse {
 
     @JsonProperty
     @NotNull

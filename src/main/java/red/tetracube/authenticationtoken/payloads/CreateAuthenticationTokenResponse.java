@@ -1,4 +1,4 @@
-package red.tetracube.authenticationtoken.dto;
+package red.tetracube.authenticationtoken.payloads;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.smallrye.common.constraint.NotNull;
@@ -7,7 +7,7 @@ import red.tetracube.data.entities.AuthenticationToken;
 import javax.validation.constraints.NotEmpty;
 import java.time.LocalDateTime;
 
-public class AuthenticationTokenDTO {
+public class CreateAuthenticationTokenResponse {
 
     @JsonProperty
     @NotNull

@@ -1,8 +1,8 @@
 package red.tetracube.authenticationtoken;
 
 import io.smallrye.mutiny.Uni;
-import red.tetracube.authenticationtoken.dto.AuthenticationTokenDTO;
-import red.tetracube.authenticationtoken.dto.CreateAuthenticationTokenRequest;
+import red.tetracube.authenticationtoken.payloads.CreateAuthenticationTokenRequest;
+import red.tetracube.authenticationtoken.payloads.CreateAuthenticationTokenResponse;
 import red.tetracube.authenticationtoken.services.CreateAuthenticationTokenService;
 
 import javax.inject.Inject;
@@ -26,8 +26,14 @@ public class AuthenticationTokenAPI {
     @POST
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    @Path("")
-    public Uni<AuthenticationTokenDTO> createAuthenticationToken(@Valid CreateAuthenticationTokenRequest request) {
-        return this.createAuthenticationTokenService.createAuthenticationToken(request);
+    @Path("/create")
+    public Uni<CreateAuthenticationTokenResponse> createAuthenticationToken(@Valid CreateAuthenticationTokenRequest request) {
+        return this.createAuthenticationTokenService.createAuthenticationToken(request)
+                .map(createAuthenticationTokenResult -> {
+                    if (!createAuthenticationTokenResult.getSuccess()) {
+                        createAuthenticationTokenResult.mapAsResponse();
+                    }
+                    return createAuthenticationTokenResult.getResultContent();
+                });
     }
 }

@@ -1,8 +1,10 @@
 package red.tetracube.authenticationtoken.services;
 
 import io.smallrye.mutiny.Uni;
-import red.tetracube.authenticationtoken.dto.AuthenticationTokenDTO;
-import red.tetracube.authenticationtoken.dto.CreateAuthenticationTokenRequest;
+import red.tetracube.authenticationtoken.payloads.CreateAuthenticationTokenRequest;
+import red.tetracube.authenticationtoken.payloads.CreateAuthenticationTokenResponse;
+import red.tetracube.core.enumerations.FailureReason;
+import red.tetracube.core.models.Result;
 import red.tetracube.data.entities.AuthenticationToken;
 import red.tetracube.data.entities.House;
 import red.tetracube.data.repositories.AuthenticationTokenRepository;
@@ -10,7 +12,6 @@ import red.tetracube.data.repositories.HouseRepository;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
-import javax.ws.rs.NotFoundException;
 import java.util.UUID;
 
 @ApplicationScoped
@@ -26,22 +27,26 @@ public class CreateAuthenticationTokenService {
         this.houseRepository = houseRepository;
     }
 
-    public Uni<AuthenticationTokenDTO> createAuthenticationToken(CreateAuthenticationTokenRequest request) {
-        var token = UUID.randomUUID().toString().replace("-", "");
+    public Uni<Result<CreateAuthenticationTokenResponse>> createAuthenticationToken(CreateAuthenticationTokenRequest request) {
         return houseRepository.getByName(request.houseName)
-                .invoke(this::validateHouse)
-                .map(house -> new AuthenticationToken(token, house))
-                .flatMap(this.authenticationTokenRepository::save)
-                .map(createdToken -> {
-                    var authenticationTokenDTO = new AuthenticationTokenDTO();
-                    authenticationTokenDTO.mapFromEntity(createdToken);
-                    return authenticationTokenDTO;
+                .flatMap(optionalHouse -> {
+                    if (optionalHouse.isEmpty()) {
+                        return Uni.createFrom().item(Result.failed(FailureReason.NOT_FOUND, "HOUSE_NOT_FOUND"));
+                    }
+                    return this.createAuthenticationToken(optionalHouse.get())
+                            .map(this::mapSuccessfulResult);
                 });
     }
 
-    private void validateHouse(House house) {
-        if (house == null) {
-            throw new NotFoundException("HOUSE_NOT_FOUND");
-        }
+    private Result<CreateAuthenticationTokenResponse> mapSuccessfulResult(AuthenticationToken savedAuthenticationToken) {
+        var authenticationTokenDTO = new CreateAuthenticationTokenResponse();
+        authenticationTokenDTO.mapFromEntity(savedAuthenticationToken);
+        return Result.success(authenticationTokenDTO);
+    }
+
+    private Uni<AuthenticationToken> createAuthenticationToken(House house) {
+        var token = UUID.randomUUID().toString().replace("-", "").substring(0, 6);
+        var authenticationToken = new AuthenticationToken(token, house);
+        return authenticationTokenRepository.save(authenticationToken);
     }
 }
