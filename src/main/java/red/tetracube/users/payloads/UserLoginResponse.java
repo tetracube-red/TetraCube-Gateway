@@ -21,4 +21,10 @@ public class UserLoginResponse {
     @NotNull
     @NotEmpty
     public String token;
+
+    @JsonProperty
+    public UUID houseId;
+
+    @JsonProperty
+    public String houseName;
 }

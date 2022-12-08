@@ -98,6 +98,8 @@ public class UserLoginService {
                                                         userLoginResponse.id = userEntity.getId();
                                                         userLoginResponse.name = userEntity.getName();
                                                         userLoginResponse.token = bearerToken;
+                                                        userLoginResponse.houseId = house.get().getId();
+                                                        userLoginResponse.houseName = house.get().getName();
                                                         return userLoginResponse;
                                                     })
                                                     .map(Result::success);
