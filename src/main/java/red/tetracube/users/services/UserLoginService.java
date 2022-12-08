@@ -62,6 +62,7 @@ public class UserLoginService {
 
                     return this.houseRepository.getById(authenticationToken.get().getHouse().getId())
                             .flatMap(house -> {
+                                LOGGER.info("Took house linked to the authentication token");
                                 return this.userRepository.existsByName(userLoginRequest.username)
                                         .flatMap(existsByName -> {
                                             var userEvaluation = this.validateAccount(user, existsByName);
@@ -69,14 +70,18 @@ public class UserLoginService {
                                                 return Uni.createFrom().item(userEvaluation.get());
                                             }
 
+                                            LOGGER.info("Creating promise of user creation - if needed -");
                                             final var isNew = user.isEmpty();
                                             var newUser = this.createUserEntity(userLoginRequest.username, authenticationToken.get(), house.get());
-
                                             var dbUserUni = isNew
                                                     ? userRepository.save(newUser)
                                                     : Uni.createFrom().item(user.get());
+
+                                            LOGGER.info("Creating promise of authentication token update");
                                             authenticationToken.get().setAsInUse();
                                             var updateAuthenticationToken = authenticationTokenRepository.save(authenticationToken.get());
+
+                                            LOGGER.info("Combining promises");
                                             return Uni.combine().all().unis(dbUserUni, updateAuthenticationToken)
                                                     .asTuple()
                                                     .map(userAndRelatedToken -> {
