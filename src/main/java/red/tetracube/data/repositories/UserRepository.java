@@ -48,9 +48,10 @@ public class UserRepository {
         var sessionUni = sessionFactory.openSession();
         return sessionUni.flatMap(session ->
                 session.createQuery("""
+                                        select user
                                         from User user
-                                        join user.authenticationToken = :authenticationToken
-                                        where lower(user.name) = lower(:name)
+                                        join user.authenticationToken authenticationToken
+                                        where authenticationToken.token = :authenticationToken
                                         """,
                                 User.class
                         )

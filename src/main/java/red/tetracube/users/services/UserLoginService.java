@@ -1,35 +1,32 @@
 package red.tetracube.users.services;
 
 import io.smallrye.jwt.build.Jwt;
-import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
-import io.smallrye.mutiny.tuples.Tuple2;
-import io.smallrye.mutiny.unchecked.Unchecked;
-import red.tetracube.core.enumerations.FailureReason;
-import red.tetracube.core.exceptions.PipelineInterruptionException;
-import red.tetracube.core.models.Result;
-import red.tetracube.data.entities.User;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import red.tetracube.configuration.properties.BearerTokenConfigurationProperties;
+import red.tetracube.core.enumerations.FailureReason;
+import red.tetracube.core.models.Result;
 import red.tetracube.data.entities.AuthenticationToken;
 import red.tetracube.data.entities.House;
-import red.tetracube.data.repositories.UserRepository;
+import red.tetracube.data.entities.User;
 import red.tetracube.data.repositories.AuthenticationTokenRepository;
 import red.tetracube.data.repositories.HouseRepository;
-import red.tetracube.users.dto.UserLoginRequest;
-import red.tetracube.users.dto.UserLoginResponse;
+import red.tetracube.data.repositories.UserRepository;
+import red.tetracube.users.payloads.UserLoginRequest;
+import red.tetracube.users.payloads.UserLoginResponse;
 
-import javax.enterprise.context.ApplicationScoped;
-import javax.validation.ValidationException;
+import javax.enterprise.context.RequestScoped;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 
-@ApplicationScoped
+@RequestScoped
 public class UserLoginService {
+
+    private final static Logger LOGGER = LoggerFactory.getLogger(UserLoginService.class);
 
     private final UserRepository userRepository;
     private final AuthenticationTokenRepository authenticationTokenRepository;
@@ -47,91 +44,86 @@ public class UserLoginService {
     }
 
     public Uni<Result<UserLoginResponse>> tryToLoginUser(UserLoginRequest userLoginRequest) {
-        var authenticationTokenUni = authenticationTokenRepository.getByToken(userLoginRequest.authenticationCode);
-        var userFromAuthenticationTokenUni = userRepository.getUserFromAuthenticationToken(userLoginRequest.authenticationCode);
-        var pipelineSurvivingObjects = new ConcurrentHashMap<String, Object>();
+        var authenticationTokenUni = authenticationTokenRepository.getByToken(userLoginRequest.authenticationCode)
+                .invoke(ignore -> LOGGER.info("Getting authentication token"));
+        var userFromAuthenticationTokenUni = userRepository.getUserFromAuthenticationToken(userLoginRequest.authenticationCode)
+                .invoke(ignore -> LOGGER.info("Searching for user linked to the token"));
         return Uni.combine().all().unis(authenticationTokenUni, userFromAuthenticationTokenUni)
-                .collectFailures()
                 .asTuple()
-                .map(responses -> {
-                    var optionalAuthenticationToken = responses.getItem1();
-                    var optionalUserFromToken = responses.getItem2();
-                    pipelineSurvivingObjects.put("optionalUserFromToken", optionalUserFromToken);
-                    pipelineSurvivingObjects.put("optionalAuthenticationToken", optionalAuthenticationToken);
-                    return this.validateAuthenticationToken(optionalAuthenticationToken, optionalUserFromToken, userLoginRequest.username);
-                })
-                .invoke(Unchecked.consumer(authTokenValidationResponse -> {
-                    if (authTokenValidationResponse.isPresent()) {
-                        throw new PipelineInterruptionException(authTokenValidationResponse.get());
+                .flatMap(authenticationTokenAndRelatedUser -> {
+                    var authenticationToken = authenticationTokenAndRelatedUser.getItem1();
+                    LOGGER.info("Got authentication from db - optional -");
+                    var user = authenticationTokenAndRelatedUser.getItem2();
+                    LOGGER.info("Got user related to authentication token from db - optional -");
+                    var tokenEvaluation = this.validateAuthenticationToken(authenticationToken, user, userLoginRequest.username);
+                    if (tokenEvaluation.isPresent()) {
+                        return Uni.createFrom().item(tokenEvaluation.get());
                     }
-                }))
-                .withContext()
-                .flatMap(authTokenValidationResponse -> {
-                    var optionalUserFromToken = (Optional<User>) pipelineSurvivingObjects.get("optionalUserFromToken");
-                    return userRepository.existsByName(userLoginRequest.username)
-                            .map(userExistsByNameResponse -> this.validateAccountExists(optionalUserFromToken, userExistsByNameResponse));
-                })
-                .invoke(Unchecked.consumer(authTokenValidationResponse -> {
-                    if (authTokenValidationResponse.isPresent()) {
-                        throw new PipelineInterruptionException(authTokenValidationResponse.get());
-                    }
-                }))
-                .map(ignored -> {
-                    var optionalUserFromAuthenticationToken = (Optional<User>) pipelineSurvivingObjects.get("optionalUserFromToken");
-                    var optionalAuthenticationToken = (Optional<AuthenticationToken>) pipelineSurvivingObjects.get("optionalAuthenticationToken");
-                    var user = optionalUserFromAuthenticationToken.isEmpty()
-                            ? createUserEntity(userLoginRequest.username, optionalAuthenticationToken.get(), unis.getItem3().get())
-                            : optionalUserFromAuthenticationToken;
-                    var isNew = optionalUserFromAuthenticationToken == null;
-                    return Tuple2.of(user, isNew);
-                })
-                .<Tuple2<User, Boolean>>flatMap(user -> {
-                    if (user.getItem2()) {
-                        return userRepository.save(user.getItem1()).map(u -> Tuple2.of(u, true));
-                    }
-                    return Uni.createFrom().item(user.getItem1()).map(u -> Tuple2.of(u, false));
-                })
-                .<User>call(user -> {
-                    if (user.getItem2()) {
-                        var linkedAuthenticationToken = user.getItem1().getAuthenticationToken();
-                        linkedAuthenticationToken.setAsInUse();
-                        return authenticationTokenRepository.save(linkedAuthenticationToken);
-                    }
-                    return Uni.createFrom().item(user.getItem1());
-                })
-                .map(userEntity -> {
-                    var bearerToken = emitBearerToken(
-                            userEntity.getItem1().getName(),
-                            Instant.now(),
-                            userEntity.getItem1().getAuthenticationToken().getValidUntil().toInstant(),
-                            userEntity.getItem1().getHouse()
-                    );
 
-                    var userLoginResponse = new UserLoginResponse();
-                    userLoginResponse.id = userEntity.getItem1().getId();
-                    userLoginResponse.name = userEntity.getItem1().getName();
-                    userLoginResponse.token = bearerToken;
-                    return userLoginResponse;
+                    return this.houseRepository.getById(authenticationToken.get().getHouse().getId())
+                            .flatMap(house -> {
+                                return this.userRepository.existsByName(userLoginRequest.username)
+                                        .flatMap(existsByName -> {
+                                            var userEvaluation = this.validateAccount(user, existsByName);
+                                            if (userEvaluation.isPresent()) {
+                                                return Uni.createFrom().item(userEvaluation.get());
+                                            }
+
+                                            final var isNew = user.isEmpty();
+                                            var newUser = this.createUserEntity(userLoginRequest.username, authenticationToken.get(), house.get());
+
+                                            var dbUserUni = isNew
+                                                    ? userRepository.save(newUser)
+                                                    : Uni.createFrom().item(user.get());
+                                            authenticationToken.get().setAsInUse();
+                                            var updateAuthenticationToken = authenticationTokenRepository.save(authenticationToken.get());
+                                            return Uni.combine().all().unis(dbUserUni, updateAuthenticationToken)
+                                                    .asTuple()
+                                                    .map(userAndRelatedToken -> {
+                                                        var userEntity = userAndRelatedToken.getItem1();
+                                                        var authenticationTokenEntity = userAndRelatedToken.getItem2();
+                                                        var bearerToken = emitBearerToken(
+                                                                userEntity.getName(),
+                                                                Instant.now(),
+                                                                authenticationTokenEntity.getValidUntil().toInstant(),
+                                                                house.get()
+                                                        );
+
+                                                        var userLoginResponse = new UserLoginResponse();
+                                                        userLoginResponse.id = userEntity.getId();
+                                                        userLoginResponse.name = userEntity.getName();
+                                                        userLoginResponse.token = bearerToken;
+                                                        return userLoginResponse;
+                                                    })
+                                                    .map(Result::success);
+                                        });
+                            });
                 });
     }
 
-    private Optional<Result<UserLoginResponse>> validateAuthenticationToken(Optional<AuthenticationToken> authenticationToken, Optional<User> user, String loginUsername) {
+    private Optional<Result<UserLoginResponse>> validateAuthenticationToken(Optional<AuthenticationToken> authenticationToken,
+                                                                            Optional<User> user,
+                                                                            String loginUsername) {
         if (authenticationToken.isEmpty()) {
+            LOGGER.warn("Token does not exists returning not found exception");
             return Optional.of(Result.failed(FailureReason.NOT_FOUND, "TOKEN_NOT_FOUND"));
         }
         if (authenticationToken.get().getValidUntil().before(Timestamp.from(Instant.now()))) {
+            LOGGER.warn("Token expired returning bad request exception");
             return Optional.of(Result.failed(FailureReason.BAD_REQUEST, "TOKEN_EXPIRED"));
         }
-        if (user.isEmpty() && authenticationToken.get().getInUse()) {
+        if (user.isPresent() && authenticationToken.get().getInUse()) {
+            LOGGER.warn("Token already in use");
             return Optional.of(Result.failed(FailureReason.BAD_REQUEST, "TOKEN_ALREADY_IN_USE"));
         }
-        if (user.isPresent() && authenticationToken.get().getInUse() && user.get().getName().equals(loginUsername)) {
+        if (user.isPresent() && authenticationToken.get().getInUse() && !user.get().getName().equals(loginUsername)) {
+            LOGGER.warn("The user related to the token is present, but is not the same to the name supplied by application");
             return Optional.of(Result.failed(FailureReason.UNAUTHORIZED, "INVALID_CREDENTIALS"));
         }
         return Optional.empty();
     }
 
-    private Optional<Result<UserLoginResponse>> validateAccountExists(Optional<User> authenticationTokenLinkedUser, boolean userExistsByName) {
+    private Optional<Result<UserLoginResponse>> validateAccount(Optional<User> authenticationTokenLinkedUser, boolean userExistsByName) {
         if (authenticationTokenLinkedUser.isEmpty() && userExistsByName) {
             return Optional.of(Result.failed(FailureReason.CONFLICTS, "ACCOUNT_ALREADY_EXISTS"));
         }

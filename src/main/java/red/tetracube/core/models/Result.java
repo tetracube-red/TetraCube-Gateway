@@ -1,8 +1,10 @@
 package red.tetracube.core.models;
 
+import io.quarkus.security.UnauthorizedException;
 import red.tetracube.core.enumerations.FailureReason;
 import red.tetracube.core.exceptions.ConflictsRequestException;
 
+import javax.ws.rs.BadRequestException;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.NotFoundException;
 
@@ -31,7 +33,9 @@ public class Result<T> {
     public void mapAsResponse() throws ClientErrorException {
         switch (this.failureReason) {
             case CONFLICTS -> throw new ConflictsRequestException(this.failureMessage);
-            case NOT_FOUND ->  throw new NotFoundException(this.failureMessage);
+            case NOT_FOUND -> throw new NotFoundException(this.failureMessage);
+            case BAD_REQUEST -> throw new BadRequestException(this.failureMessage);
+            case UNAUTHORIZED -> throw new UnauthorizedException(this.failureMessage);
         }
     }
 

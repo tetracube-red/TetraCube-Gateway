@@ -1,24 +1,19 @@
-package red.tetracube.users.dto;
+package red.tetracube.users.payloads;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.smallrye.common.constraint.NotNull;
 
 import javax.validation.constraints.NotEmpty;
-import java.util.UUID;
 
-public class UserLoginResponse {
-
-    @JsonProperty
-    @NotNull
-    public UUID id;
+public class UserLoginRequest {
 
     @JsonProperty
     @NotNull
     @NotEmpty
-    public String name;
+    public String username;
 
     @JsonProperty
     @NotNull
     @NotEmpty
-    public String token;
+    public String authenticationCode;
 }
