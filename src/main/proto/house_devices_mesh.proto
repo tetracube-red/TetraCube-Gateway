@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "red.tetracube";
+option java_outer_classname = "HouseDevicesMeshGrpcProto";
+
+package house;
+
+enum DeviceType {
+    SWITCHER = 0;
+    RGB_LED = 1;
+}
+
+service HouseDevicesMesh {
+    rpc DescribeDevicesMesh (DescribeDeviceMeshRequest) returns (DescribeDeviceMeshResponse) {}
+}
+
+message DescribeDeviceMeshRequest {
+    string userId = 1;
+    string houseId = 2;
+}
+
+message DescribeDeviceMeshResponse {
+    string id = 1;
+    string name = 2;
+    repeated Device devices = 3;
+}
+
+message Device {
+    string id = 1;
+    string name = 2;
+    string colorCode = 3;
+    bool isOnline = 4;
+    DeviceType deviceType = 5;
+    HouseEnvironment environment = 6;
+}
+
+message HouseEnvironment {
+    string id = 1;
+    string name = 2;
+}
