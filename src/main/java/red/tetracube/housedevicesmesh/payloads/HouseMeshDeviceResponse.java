@@ -7,7 +7,7 @@ import red.tetracube.DeviceType;
 import javax.validation.constraints.NotEmpty;
 import java.util.UUID;
 
-public class HouseDevice {
+public class HouseMeshDeviceResponse {
 
     @JsonProperty
     @NotNull
@@ -29,9 +29,9 @@ public class HouseDevice {
 
     @JsonProperty
     @NotNull
-    DeviceType deviceType;
+    public DeviceType deviceType;
 
     @JsonProperty
     @NotNull
-    public HouseDeviceEnvironment environment;
+    public HouseEnvironmentResponse environment;
 }

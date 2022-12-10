@@ -9,7 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-public class HouseMeshDescriptionResponse {
+public class GetHouseMeshDescriptionResponse {
 
     @JsonProperty
     @NotNull
@@ -22,17 +22,17 @@ public class HouseMeshDescriptionResponse {
 
     @JsonProperty
     @NotNull
-    public List<HouseDevice> houseDeviceList = new ArrayList<>();
+    public List<HouseMeshDeviceResponse> houseMeshDeviceResponseList = new ArrayList<>();
 
     public void fromGrpcServiceResponse(DescribeDeviceMeshResponse describeDeviceMeshResponse) {
         this.houseId = UUID.fromString(describeDeviceMeshResponse.getId());
         this.name = describeDeviceMeshResponse.getName();
-        this.houseDeviceList = describeDeviceMeshResponse.getDevicesList().stream()
+        this.houseMeshDeviceResponseList = describeDeviceMeshResponse.getDevicesList().stream()
                 .map(grpcDevice -> {
-                    var environment = new HouseDeviceEnvironment();
+                    var environment = new HouseEnvironmentResponse();
                     environment.id = UUID.fromString(grpcDevice.getEnvironment().getId());
                     environment.name = grpcDevice.getEnvironment().getName();
-                    var device = new HouseDevice();
+                    var device = new HouseMeshDeviceResponse();
                     device.id = UUID.fromString(grpcDevice.getId());
                     device.deviceType = grpcDevice.getDeviceType();
                     device.environment = environment;

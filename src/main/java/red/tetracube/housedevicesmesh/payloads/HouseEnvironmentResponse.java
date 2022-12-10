@@ -6,7 +6,7 @@ import io.smallrye.common.constraint.NotNull;
 import javax.validation.constraints.NotEmpty;
 import java.util.UUID;
 
-public class HouseDeviceEnvironment {
+public class HouseEnvironmentResponse {
 
     @JsonProperty
     @NotNull

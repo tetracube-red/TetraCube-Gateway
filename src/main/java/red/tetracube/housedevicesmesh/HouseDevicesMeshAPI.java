@@ -5,7 +5,7 @@ import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.unchecked.Unchecked;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 import red.tetracube.*;
-import red.tetracube.housedevicesmesh.payloads.HouseMeshDescriptionResponse;
+import red.tetracube.housedevicesmesh.payloads.GetHouseMeshDescriptionResponse;
 
 import javax.annotation.security.RolesAllowed;
 import javax.enterprise.context.RequestScoped;
@@ -28,15 +28,18 @@ public class HouseDevicesMeshAPI {
     }
 
     @GET
-    @Path("/{houseId}")
+    @Path("")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    public Uni<HouseMeshDescriptionResponse> getHouseMeshDescription(@PathParam("houseId") UUID houseId) {
-        return this.house.describeDevicesMesh(
-                        DescribeDeviceMeshRequest.newBuilder()
-                                .setHouseId(houseId.toString())
-                                .build()
-                )
+    public Uni<GetHouseMeshDescriptionResponse> getHouseMeshDescription() {
+        var optionalHouseId = this.jwt.<String>claim("houseId");
+        if (optionalHouseId.isEmpty()) {
+            throw new NotFoundException("NO_HOUSE_FOUND");
+        }
+        var describeDeviceMeshRequest = DescribeDeviceMeshRequest.newBuilder()
+                .setHouseId(optionalHouseId.get())
+                .build();
+        return this.house.describeDevicesMesh(describeDeviceMeshRequest)
                 .invoke(Unchecked.consumer(response -> {
                             if (response == null) {
                                 throw new NotFoundException("NO_HOUSE_FOUND");
@@ -44,7 +47,7 @@ public class HouseDevicesMeshAPI {
                         })
                 )
                 .map(grpcResponse -> {
-                    var houseMeshDescriptionResponse = new HouseMeshDescriptionResponse();
+                    var houseMeshDescriptionResponse = new GetHouseMeshDescriptionResponse();
                     houseMeshDescriptionResponse.fromGrpcServiceResponse(grpcResponse);
                     return houseMeshDescriptionResponse;
                 });

@@ -22,6 +22,7 @@ import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @RequestScoped
 public class UserLoginService {
@@ -88,6 +89,7 @@ public class UserLoginService {
                                                         var userEntity = userAndRelatedToken.getItem1();
                                                         var authenticationTokenEntity = userAndRelatedToken.getItem2();
                                                         var bearerToken = emitBearerToken(
+                                                                userEntity.getId(),
                                                                 userEntity.getName(),
                                                                 Instant.now(),
                                                                 authenticationTokenEntity.getValidUntil().toInstant(),
@@ -145,13 +147,16 @@ public class UserLoginService {
         );
     }
 
-    private String emitBearerToken(String username, Instant issuedAt, Instant expiresAt, House house) {
+    private String emitBearerToken(UUID userId, String username, Instant issuedAt, Instant expiresAt, House house) {
         return Jwt.issuer(bearerTokenConfigurationProperties.getIssuer())
                 .upn(username)
                 .issuedAt(issuedAt)
                 .expiresAt(expiresAt)
                 .groups(new HashSet<>(List.of("User")))
                 .audience(bearerTokenConfigurationProperties.getAudiences())
+                .claim("userId", userId)
+                .claim("houseId", house.getId())
+                .claim("houseName", house.getName())
                 .sign();
     }
 }
