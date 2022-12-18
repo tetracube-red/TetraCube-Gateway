@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+import "google/protobuf/timestamp.proto";
+
 option java_multiple_files = true;
 option java_package = "red.tetracube";
 option java_outer_classname = "HouseDevicesMeshGrpcProto";
@@ -9,6 +11,11 @@ package house;
 enum DeviceType {
     SWITCHER = 0;
     RGB_LED = 1;
+}
+
+enum LogicState {
+    OFF = 0;
+    ON = 1;
 }
 
 service HouseDevicesMesh {
@@ -33,6 +40,14 @@ message Device {
     bool isOnline = 4;
     DeviceType deviceType = 5;
     HouseEnvironment environment = 6;
+    Switcher switcher = 7;
+}
+
+message Switcher {
+    string id = 1;
+    LogicState currentState = 2;
+    google.protobuf.Timestamp lastActionTimestamp = 3;
+    repeated LogicState actions = 4;
 }
 
 message HouseEnvironment {

@@ -4,14 +4,14 @@ import io.quarkus.grpc.GrpcClient;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.unchecked.Unchecked;
 import org.eclipse.microprofile.jwt.JsonWebToken;
-import red.tetracube.*;
+import red.tetracube.DescribeDeviceMeshRequest;
+import red.tetracube.HouseDevicesMesh;
 import red.tetracube.housedevicesmesh.payloads.GetHouseMeshDescriptionResponse;
 
 import javax.annotation.security.RolesAllowed;
 import javax.enterprise.context.RequestScoped;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
-import java.util.UUID;
 
 @RequestScoped
 @RolesAllowed({"User"})
