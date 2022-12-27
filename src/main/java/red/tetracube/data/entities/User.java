@@ -1,10 +1,11 @@
 package red.tetracube.data.entities;
 
 import javax.persistence.*;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Table(name = "users")
+@Table(schema = "gateway", name = "users")
 public class User {
 
     @Id
@@ -21,6 +22,18 @@ public class User {
     @JoinColumn(name = "id_authentication_token")
     @ManyToOne(fetch = FetchType.LAZY, targetEntity = AuthenticationToken.class)
     private AuthenticationToken authenticationToken;
+
+    @ManyToMany(
+            targetEntity = Authorization.class,
+            fetch = FetchType.LAZY
+    )
+    @JoinTable(
+            schema = "gateway",
+            name = "users_authorizations",
+            joinColumns = {@JoinColumn(name = "user_id")},
+            inverseJoinColumns = {@JoinColumn(name = "authorization_id")}
+    )
+    private List<Authorization> authorizationList;
 
     public User() {
     }

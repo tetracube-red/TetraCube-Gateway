@@ -7,7 +7,7 @@ import javax.persistence.Table;
 import java.util.UUID;
 
 @Entity
-@Table(name = "houses")
+@Table(schema = "gateway", name = "houses")
 public class House {
 
     @Id

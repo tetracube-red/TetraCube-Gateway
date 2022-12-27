@@ -6,7 +6,7 @@ import java.util.Calendar;
 import java.util.UUID;
 
 @Entity
-@Table(name = "authentication_tokens")
+@Table(schema = "gateway", name = "authentication_tokens")
 public class AuthenticationToken {
 
     @Id
