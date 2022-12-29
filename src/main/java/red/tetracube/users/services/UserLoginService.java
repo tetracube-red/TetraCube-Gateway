@@ -7,7 +7,6 @@ import org.slf4j.LoggerFactory;
 import red.tetracube.configuration.properties.BearerTokenConfigurationProperties;
 import red.tetracube.core.enumerations.FailureReason;
 import red.tetracube.core.models.Result;
-import red.tetracube.data.entities.AuthenticationToken;
 import red.tetracube.data.entities.House;
 import red.tetracube.data.entities.User;
 import red.tetracube.data.repositories.AuthenticationTokenRepository;
@@ -21,7 +20,6 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 @RequestScoped
@@ -44,107 +42,92 @@ public class UserLoginService {
         this.bearerTokenConfigurationProperties = bearerTokenConfigurationProperties;
     }
 
-    public Uni<Result<UserLoginResponse>> tryToLoginUser(UserLoginRequest userLoginRequest) {
-        var authenticationTokenUni = authenticationTokenRepository.getByToken(userLoginRequest.authenticationCode)
-                .invoke(ignore -> LOGGER.info("Getting authentication token"));
-        var userFromAuthenticationTokenUni = userRepository.getUserFromAuthenticationToken(userLoginRequest.authenticationCode)
-                .invoke(ignore -> LOGGER.info("Searching for user linked to the token"));
-        return Uni.combine().all().unis(authenticationTokenUni, userFromAuthenticationTokenUni)
+    public Uni<Result<Void>> validateAccountAndAuthenticationTokenRelation(String username, String authenticationCode) {
+        var userFromTokenUni = this.userRepository.getUserFromAuthenticationCode(authenticationCode);
+        var userExistsByNameUni = this.userRepository.existsByName(username);
+        var authenticationTokenUni = this.authenticationTokenRepository.getByToken(authenticationCode);
+        return Uni.combine().all().unis(userFromTokenUni, userExistsByNameUni, authenticationTokenUni)
                 .asTuple()
-                .flatMap(authenticationTokenAndRelatedUser -> {
-                    var authenticationToken = authenticationTokenAndRelatedUser.getItem1();
-                    LOGGER.info("Got authentication from db - optional -");
-                    var user = authenticationTokenAndRelatedUser.getItem2();
-                    LOGGER.info("Got user related to authentication token from db - optional -");
-                    var tokenEvaluation = this.validateAuthenticationToken(authenticationToken, user, userLoginRequest.username);
-                    if (tokenEvaluation.isPresent()) {
-                        return Uni.createFrom().item(tokenEvaluation.get());
+                .map(queriesResultSet -> {
+                    var authenticationTokenLinkedUser = queriesResultSet.getItem1();
+                    var userExistsByName = queriesResultSet.getItem2();
+                    var authenticationToken = queriesResultSet.getItem3();
+                    if (authenticationToken == null) {
+                        LOGGER.warn("Token does not exists returning not found exception");
+                        return Result.failed(FailureReason.NOT_FOUND, "TOKEN_NOT_FOUND");
                     }
-
-                    return this.houseRepository.getById(authenticationToken.get().getHouse().getId())
-                            .flatMap(house -> {
-                                LOGGER.info("Took house linked to the authentication token");
-                                return this.userRepository.existsByName(userLoginRequest.username)
-                                        .flatMap(existsByName -> {
-                                            var userEvaluation = this.validateAccount(user, existsByName);
-                                            if (userEvaluation.isPresent()) {
-                                                return Uni.createFrom().item(userEvaluation.get());
-                                            }
-
-                                            LOGGER.info("Creating promise of user creation - if needed -");
-                                            final var isNew = user.isEmpty();
-                                            var newUser = this.createUserEntity(userLoginRequest.username, authenticationToken.get(), house.get());
-                                            var dbUserUni = isNew
-                                                    ? userRepository.save(newUser)
-                                                    : Uni.createFrom().item(user.get());
-
-                                            LOGGER.info("Creating promise of authentication token update");
-                                            authenticationToken.get().setAsInUse();
-                                            var updateAuthenticationToken = authenticationTokenRepository.save(authenticationToken.get());
-
-                                            LOGGER.info("Combining promises");
-                                            return Uni.combine().all().unis(dbUserUni, updateAuthenticationToken)
-                                                    .asTuple()
-                                                    .map(userAndRelatedToken -> {
-                                                        var userEntity = userAndRelatedToken.getItem1();
-                                                        var authenticationTokenEntity = userAndRelatedToken.getItem2();
-                                                        var bearerToken = emitBearerToken(
-                                                                userEntity.getId(),
-                                                                userEntity.getName(),
-                                                                Instant.now(),
-                                                                authenticationTokenEntity.getValidUntil().toInstant(),
-                                                                house.get()
-                                                        );
-
-                                                        var userLoginResponse = new UserLoginResponse();
-                                                        userLoginResponse.id = userEntity.getId();
-                                                        userLoginResponse.name = userEntity.getName();
-                                                        userLoginResponse.token = bearerToken;
-                                                        userLoginResponse.houseId = house.get().getId();
-                                                        userLoginResponse.houseName = house.get().getName();
-                                                        return userLoginResponse;
-                                                    })
-                                                    .map(Result::success);
-                                        });
-                            });
+                    if (authenticationToken.getValidUntil().before(Timestamp.from(Instant.now()))) {
+                        LOGGER.warn("Token expired returning bad request exception");
+                        return Result.failed(FailureReason.BAD_REQUEST, "TOKEN_EXPIRED");
+                    }
+                    if (authenticationTokenLinkedUser == null && userExistsByName) {
+                        return Result.failed(FailureReason.CONFLICTS, "ACCOUNT_ALREADY_EXISTS");
+                    }
+                    if (authenticationTokenLinkedUser != null && authenticationToken.getInUse() && !authenticationTokenLinkedUser.getName().equals(username)) {
+                        LOGGER.warn("The user related to the token is present, but is not the same to the name supplied by application");
+                        return Result.failed(FailureReason.UNAUTHORIZED, "INVALID_CREDENTIALS");
+                    }
+                    return Result.success(null);
                 });
     }
 
-    private Optional<Result<UserLoginResponse>> validateAuthenticationToken(Optional<AuthenticationToken> authenticationToken,
-                                                                            Optional<User> user,
-                                                                            String loginUsername) {
-        if (authenticationToken.isEmpty()) {
-            LOGGER.warn("Token does not exists returning not found exception");
-            return Optional.of(Result.failed(FailureReason.NOT_FOUND, "TOKEN_NOT_FOUND"));
-        }
-        if (authenticationToken.get().getValidUntil().before(Timestamp.from(Instant.now()))) {
-            LOGGER.warn("Token expired returning bad request exception");
-            return Optional.of(Result.failed(FailureReason.BAD_REQUEST, "TOKEN_EXPIRED"));
-        }
-        if (user.isPresent() && authenticationToken.get().getInUse()) {
-            LOGGER.warn("Token already in use");
-            return Optional.of(Result.failed(FailureReason.BAD_REQUEST, "TOKEN_ALREADY_IN_USE"));
-        }
-        if (user.isPresent() && authenticationToken.get().getInUse() && !user.get().getName().equals(loginUsername)) {
-            LOGGER.warn("The user related to the token is present, but is not the same to the name supplied by application");
-            return Optional.of(Result.failed(FailureReason.UNAUTHORIZED, "INVALID_CREDENTIALS"));
-        }
-        return Optional.empty();
+    public Uni<Result<UserLoginResponse>> tryToLoginUser(UserLoginRequest userLoginRequest) {
+        var authenticationTokenUni = authenticationTokenRepository.getByToken(userLoginRequest.authenticationCode)
+                .onItem()
+                .invoke(ignore -> LOGGER.info("Getting authentication token"));
+        var userFromAuthenticationTokenUni = this.getOrCreateUser(userLoginRequest.username, userLoginRequest.authenticationCode)
+                .onItem()
+                .invoke(ignore -> LOGGER.info("Searching for user linked to the token"));
+        var houseUni = houseRepository.getByRelatedAuthenticationCode(userLoginRequest.authenticationCode)
+                .onItem()
+                .invoke(ignore -> LOGGER.info("Getting house linked to the authentication token"));
+
+        return Uni.combine().all().unis(authenticationTokenUni, userFromAuthenticationTokenUni, houseUni)
+                .asTuple()
+                .map(queriesResults -> {
+                    var authenticationToken = queriesResults.getItem1();
+                    var house = queriesResults.getItem3();
+                    var user = queriesResults.getItem2();
+
+                    var bearerToken = emitBearerToken(
+                            user.getId(),
+                            user.getName(),
+                            Instant.now(),
+                            authenticationToken.getValidUntil().toInstant(),
+                            house
+                    );
+
+                    var userLoginResponse = new UserLoginResponse();
+                    userLoginResponse.id = user.getId();
+                    userLoginResponse.name = user.getName();
+                    userLoginResponse.token = bearerToken;
+                    userLoginResponse.houseId = house.getId();
+                    userLoginResponse.houseName = house.getName();
+                    return Result.success(userLoginResponse);
+                });
     }
 
-    private Optional<Result<UserLoginResponse>> validateAccount(Optional<User> authenticationTokenLinkedUser, boolean userExistsByName) {
-        if (authenticationTokenLinkedUser.isEmpty() && userExistsByName) {
-            return Optional.of(Result.failed(FailureReason.CONFLICTS, "ACCOUNT_ALREADY_EXISTS"));
-        }
-        return Optional.empty();
-    }
-
-    private User createUserEntity(String username, AuthenticationToken authenticationToken, House house) {
-        return new User(
-                username,
-                house,
-                authenticationToken
-        );
+    private Uni<User> getOrCreateUser(String username, String authenticationCode) {
+        var userFromAuthenticationCodeUni = this.userRepository.getUserFromAuthenticationCode(authenticationCode);
+        var authenticationTokenUni = this.authenticationTokenRepository.getByToken(authenticationCode);
+        var houseUni = this.houseRepository.getByRelatedAuthenticationCode(authenticationCode);
+        return userFromAuthenticationCodeUni
+                .onItem()
+                .ifNull()
+                .switchTo(() ->
+                        Uni.combine().all().unis(authenticationTokenUni, houseUni)
+                                .asTuple()
+                                .flatMap(queriesResultTuple -> {
+                                    var house = queriesResultTuple.getItem2();
+                                    var authenticationToken = queriesResultTuple.getItem1();
+                                    var newUser = new User(
+                                            username,
+                                            house,
+                                            authenticationToken
+                                    );
+                                    return this.userRepository.save(newUser);
+                                })
+                );
     }
 
     private String emitBearerToken(UUID userId, String username, Instant issuedAt, Instant expiresAt, House house) {

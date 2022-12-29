@@ -1,9 +1,7 @@
 package red.tetracube.data.entities;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import javax.persistence.*;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -16,6 +14,9 @@ public class House {
 
     @Column(name = "name", nullable = false, unique = true)
     private String name;
+
+    @OneToMany(fetch = FetchType.LAZY, targetEntity = AuthenticationToken.class, mappedBy = "house")
+    private List<AuthenticationToken> authenticationTokenList;
 
     public House() {
     }

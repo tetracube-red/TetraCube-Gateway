@@ -67,6 +67,23 @@ public class HouseRepository {
         );
     }
 
+    public Uni<House> getByRelatedAuthenticationCode(String authenticationCode) {
+        var sessionUni = sessionFactory.openSession();
+        return sessionUni.flatMap(session ->
+                session.createQuery("""
+                                        select house
+                                        from House house
+                                        left join house.authenticationTokenList authenticationTokens
+                                        where authenticationTokens.token = :authenticationCode
+                                        """,
+                                House.class
+                        )
+                        .setParameter("authenticationCode", authenticationCode)
+                        .getSingleResultOrNull()
+                        .eventually(session::close)
+        );
+    }
+
     public Uni<House> save(House house) {
         var sessionUni = sessionFactory.openSession();
         return sessionUni.flatMap(session ->

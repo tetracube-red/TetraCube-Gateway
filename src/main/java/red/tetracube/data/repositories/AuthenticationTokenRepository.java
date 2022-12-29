@@ -27,7 +27,7 @@ public class AuthenticationTokenRepository {
         );
     }
 
-    public Uni<Optional<AuthenticationToken>> getByToken(String authenticationToken) {
+    public Uni<AuthenticationToken> getByToken(String authenticationToken) {
         var sessionUni = sessionFactory.openSession();
         return sessionUni.flatMap(session ->
                 session.createQuery("""
@@ -40,7 +40,6 @@ public class AuthenticationTokenRepository {
                         .setMaxResults(1)
                         .getSingleResultOrNull()
                         .eventually(session::close)
-                        .map(Optional::ofNullable)
         );
     }
 }

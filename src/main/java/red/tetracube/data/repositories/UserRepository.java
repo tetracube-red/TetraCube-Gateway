@@ -44,21 +44,20 @@ public class UserRepository {
         );
     }
 
-    public Uni<Optional<User>> getUserFromAuthenticationToken(String authenticationToken) {
+    public Uni<User> getUserFromAuthenticationCode(String authenticationCode) {
         var sessionUni = sessionFactory.openSession();
         return sessionUni.flatMap(session ->
                 session.createQuery("""
                                         select user
                                         from User user
-                                        join user.authenticationToken authenticationToken
-                                        where authenticationToken.token = :authenticationToken
+                                        left join user.authenticationToken authenticationToken
+                                        where authenticationToken.token = :authenticationCode
                                         """,
                                 User.class
                         )
-                        .setParameter("authenticationToken", authenticationToken)
+                        .setParameter("authenticationCode", authenticationCode)
                         .getSingleResultOrNull()
                         .eventually(session::close)
-                        .map(Optional::ofNullable)
         );
     }
 }
