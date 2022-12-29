@@ -10,6 +10,7 @@ import red.tetracube.core.models.Result;
 import red.tetracube.data.entities.House;
 import red.tetracube.data.entities.User;
 import red.tetracube.data.repositories.AuthenticationTokenRepository;
+import red.tetracube.data.repositories.AuthorizationRepository;
 import red.tetracube.data.repositories.HouseRepository;
 import red.tetracube.data.repositories.UserRepository;
 import red.tetracube.users.payloads.UserLoginRequest;
@@ -31,15 +32,18 @@ public class UserLoginService {
     private final AuthenticationTokenRepository authenticationTokenRepository;
     private final HouseRepository houseRepository;
     private final BearerTokenConfigurationProperties bearerTokenConfigurationProperties;
+    private final AuthorizationRepository authorizationRepository;
 
     public UserLoginService(UserRepository userRepository,
                             AuthenticationTokenRepository authenticationTokenRepository,
                             HouseRepository houseRepository,
-                            BearerTokenConfigurationProperties bearerTokenConfigurationProperties) {
+                            BearerTokenConfigurationProperties bearerTokenConfigurationProperties,
+                            AuthorizationRepository authorizationRepository) {
         this.userRepository = userRepository;
         this.authenticationTokenRepository = authenticationTokenRepository;
         this.houseRepository = houseRepository;
         this.bearerTokenConfigurationProperties = bearerTokenConfigurationProperties;
+        this.authorizationRepository = authorizationRepository;
     }
 
     public Uni<Result<Void>> validateAccountAndAuthenticationTokenRelation(String username, String authenticationCode) {
@@ -63,7 +67,7 @@ public class UserLoginService {
                     if (authenticationTokenLinkedUser == null && userExistsByName) {
                         return Result.failed(FailureReason.CONFLICTS, "ACCOUNT_ALREADY_EXISTS");
                     }
-                    if (authenticationTokenLinkedUser != null && authenticationToken.getInUse() && !authenticationTokenLinkedUser.getName().equals(username)) {
+                    if (authenticationTokenLinkedUser != null && !authenticationTokenLinkedUser.getName().equals(username)) {
                         LOGGER.warn("The user related to the token is present, but is not the same to the name supplied by application");
                         return Result.failed(FailureReason.UNAUTHORIZED, "INVALID_CREDENTIALS");
                     }
@@ -111,19 +115,22 @@ public class UserLoginService {
         var userFromAuthenticationCodeUni = this.userRepository.getUserFromAuthenticationCode(authenticationCode);
         var authenticationTokenUni = this.authenticationTokenRepository.getByToken(authenticationCode);
         var houseUni = this.houseRepository.getByRelatedAuthenticationCode(authenticationCode);
+        var authorizationsUni = this.authorizationRepository.getAll();
         return userFromAuthenticationCodeUni
                 .onItem()
                 .ifNull()
                 .switchTo(() ->
-                        Uni.combine().all().unis(authenticationTokenUni, houseUni)
+                        Uni.combine().all().unis(authenticationTokenUni, houseUni, authorizationsUni)
                                 .asTuple()
                                 .flatMap(queriesResultTuple -> {
                                     var house = queriesResultTuple.getItem2();
                                     var authenticationToken = queriesResultTuple.getItem1();
+                                    var authorizations = queriesResultTuple.getItem3();
                                     var newUser = new User(
                                             username,
                                             house,
-                                            authenticationToken
+                                            authenticationToken,
+                                            authorizations
                                     );
                                     return this.userRepository.save(newUser);
                                 })

@@ -51,6 +51,7 @@ public class UserRepository {
                                         select user
                                         from User user
                                         left join user.authenticationToken authenticationToken
+                                        left join fetch user.authorizationList authorizations
                                         where authenticationToken.token = :authenticationCode
                                         """,
                                 User.class

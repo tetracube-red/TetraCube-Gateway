@@ -38,11 +38,12 @@ public class User {
     public User() {
     }
 
-    public User(String name, House house, AuthenticationToken authenticationToken) {
+    public User(String name, House house, AuthenticationToken authenticationToken, List<Authorization> authorizationList) {
         this.id = UUID.randomUUID();
         this.name = name;
         this.house = house;
         this.authenticationToken = authenticationToken;
+        this.authorizationList = authorizationList;
     }
 
     public UUID getId() {
