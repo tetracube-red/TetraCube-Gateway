@@ -9,7 +9,7 @@ import (
 )
 
 type DatabaseConnection struct {
-	db *bun.DB
+	DB *bun.DB
 }
 
 func Init() *DatabaseConnection {
@@ -18,7 +18,7 @@ func Init() *DatabaseConnection {
 
 	dbConn := bun.NewDB(sqldb, pgdialect.New())
 	databaseConnection := DatabaseConnection{
-		db: dbConn,
+		DB: dbConn,
 	}
 	return &databaseConnection
 }

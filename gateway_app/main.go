@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 
-	"red.tetracube/tetracube-gateway/gateway-app/db"
-	"red.tetracube/tetracube-gateway/gateway-app/server"
+	"red.tetracube/tetracube-gateway/gateway_app/db"
+	"red.tetracube/tetracube-gateway/gateway_app/server"
 )
 
 func main() {
