@@ -19,6 +19,7 @@ type AuthenticationToken struct {
 	InUse      bool      `bun:"in_use,notnull,default:false"`
 	HouseId    uuid.UUID `bun:"house_id,type:uuid,notnull"`
 	House      *House    `bun:"rel:belongs-to,join:house_id=id"`
+	Users      []*User   `bun:"rel:has-many,join:id=id_authentication_token"`
 }
 
 func GetNewAuthenticationTokenEntity(houseId uuid.UUID) *AuthenticationToken {

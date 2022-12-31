@@ -5,6 +5,7 @@ import (
 	authenticationtoken "red.tetracube/tetracube-gateway/gateway_app/authentication_token"
 	"red.tetracube/tetracube-gateway/gateway_app/db"
 	"red.tetracube/tetracube-gateway/gateway_app/house"
+	"red.tetracube/tetracube-gateway/gateway_app/user"
 )
 
 type Server struct {
@@ -36,5 +37,11 @@ func (s *Server) NewRouter(dbConnection *db.DatabaseConnection) {
 	{
 		authenticationTokenController := authenticationtoken.AuthenticationTokenController{DbConnection: dbConnection}
 		authenticationTokenRoutersGroup.POST("/create", authenticationTokenController.CreateAuthenticationToken)
+	}
+
+	userRoutersGroup := s.GinServerEngine.Group("/users")
+	{
+		userController := user.UserController{DbConnection: dbConnection}
+		userRoutersGroup.POST("/login", userController.UserLogin)
 	}
 }
