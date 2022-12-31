@@ -8,26 +8,24 @@ import javax.ws.rs.BadRequestException;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.NotFoundException;
 
-public class Result<T> {
+public class BusinessValidationResult {
 
-    private final T resultContent;
     private final Boolean success;
     private final FailureReason failureReason;
     private final String failureMessage;
 
-    private Result(T resultContent, Boolean success, FailureReason failureReason, String failureMessage) {
-        this.resultContent = resultContent;
+    private BusinessValidationResult(Boolean success, FailureReason failureReason, String failureMessage) {
         this.success = success;
         this.failureReason = failureReason;
         this.failureMessage = failureMessage;
     }
 
-    public static <T> Result<T> success(T content) {
-        return new Result<>(content, true, null, null);
+    public static BusinessValidationResult success() {
+        return new BusinessValidationResult(true, null, null);
     }
 
-    public static <T> Result<T> failed(FailureReason failureReason, String message) {
-        return new Result<>(null, false, failureReason, message);
+    public static BusinessValidationResult failed(FailureReason failureReason, String message) {
+        return new BusinessValidationResult(false, failureReason, message);
     }
 
     public void mapAsResponse() throws ClientErrorException {
@@ -37,10 +35,6 @@ public class Result<T> {
             case BAD_REQUEST -> throw new BadRequestException(this.failureMessage);
             case UNAUTHORIZED -> throw new UnauthorizedException(this.failureMessage);
         }
-    }
-
-    public T getResultContent() {
-        return resultContent;
     }
 
     public Boolean getSuccess() {
@@ -54,4 +48,5 @@ public class Result<T> {
     public String getFailureMessage() {
         return failureMessage;
     }
+    
 }

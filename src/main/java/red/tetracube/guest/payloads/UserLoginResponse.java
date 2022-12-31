@@ -1,4 +1,4 @@
-package red.tetracube.users.payloads;
+package red.tetracube.guest.payloads;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.smallrye.common.constraint.NotNull;

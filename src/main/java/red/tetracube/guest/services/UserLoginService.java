@@ -1,52 +1,35 @@
-package red.tetracube.users.services;
+package red.tetracube.guest.services;
 
-import io.smallrye.jwt.build.Jwt;
-import io.smallrye.mutiny.Uni;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import red.tetracube.configuration.properties.BearerTokenConfigurationProperties;
-import red.tetracube.core.enumerations.FailureReason;
-import red.tetracube.core.models.Result;
-import red.tetracube.data.entities.House;
-import red.tetracube.data.entities.User;
-import red.tetracube.data.repositories.AuthenticationTokenRepository;
-import red.tetracube.data.repositories.AuthorizationRepository;
-import red.tetracube.data.repositories.HouseRepository;
-import red.tetracube.data.repositories.UserRepository;
-import red.tetracube.users.payloads.UserLoginRequest;
-import red.tetracube.users.payloads.UserLoginResponse;
-
 import javax.enterprise.context.RequestScoped;
-import java.sql.Timestamp;
-import java.time.Instant;
-import java.util.HashSet;
-import java.util.List;
-import java.util.UUID;
 
 @RequestScoped
 public class UserLoginService {
 
     private final static Logger LOGGER = LoggerFactory.getLogger(UserLoginService.class);
 
-    private final UserRepository userRepository;
-    private final AuthenticationTokenRepository authenticationTokenRepository;
-    private final HouseRepository houseRepository;
+  /*   private final GuestRepository userRepository;
+    //private final AuthenticationTokenRepository authenticationTokenRepository;
+    private final TetraCubeRepository houseRepository;
     private final BearerTokenConfigurationProperties bearerTokenConfigurationProperties;
-    private final AuthorizationRepository authorizationRepository;
+    private final PermissionRepository authorizationRepository;
+    private final BCryptPasswordEncoder passwordEncoder;
 
-    public UserLoginService(UserRepository userRepository,
+    public UserLoginService(GuestRepository userRepository,
                             AuthenticationTokenRepository authenticationTokenRepository,
-                            HouseRepository houseRepository,
+                            TetraCubeRepository houseRepository,
                             BearerTokenConfigurationProperties bearerTokenConfigurationProperties,
-                            AuthorizationRepository authorizationRepository) {
+                            PermissionRepository authorizationRepository) {
         this.userRepository = userRepository;
         this.authenticationTokenRepository = authenticationTokenRepository;
         this.houseRepository = houseRepository;
         this.bearerTokenConfigurationProperties = bearerTokenConfigurationProperties;
         this.authorizationRepository = authorizationRepository;
+        this.passwordEncoder = new BCryptPasswordEncoder();
     }
 
-    public Uni<Result<Void>> validateAccountAndAuthenticationTokenRelation(String username, String authenticationCode) {
+    public Uni<Result<Void>> validateUserAndAuthenticationTokenRelation(String username, String authenticationCode) {
         var userFromTokenUni = this.userRepository.getUserFromAuthenticationCode(authenticationCode);
         var userExistsByNameUni = this.userRepository.existsByName(username);
         var authenticationTokenUni = this.authenticationTokenRepository.getByToken(authenticationCode);
@@ -65,7 +48,7 @@ public class UserLoginService {
                         return Result.failed(FailureReason.BAD_REQUEST, "TOKEN_EXPIRED");
                     }
                     if (authenticationTokenLinkedUser == null && userExistsByName) {
-                        return Result.failed(FailureReason.CONFLICTS, "ACCOUNT_ALREADY_EXISTS");
+                        return Result.failed(FailureReason.CONFLICTS, "USER_ALREADY_EXISTS");
                     }
                     if (authenticationTokenLinkedUser != null && !authenticationTokenLinkedUser.getName().equals(username)) {
                         LOGGER.warn("The user related to the token is present, but is not the same to the name supplied by application");
@@ -111,7 +94,7 @@ public class UserLoginService {
                 });
     }
 
-    private Uni<User> getOrCreateUser(String username, String authenticationCode) {
+    private Uni<Guest> getOrCreateUser(String username, String authenticationCode) {
         var userFromAuthenticationCodeUni = this.userRepository.getUserFromAuthenticationCode(authenticationCode);
         var authenticationTokenUni = this.authenticationTokenRepository.getByToken(authenticationCode);
         var houseUni = this.houseRepository.getByRelatedAuthenticationCode(authenticationCode);
@@ -126,7 +109,7 @@ public class UserLoginService {
                                     var house = queriesResultTuple.getItem2();
                                     var authenticationToken = queriesResultTuple.getItem1();
                                     var authorizations = queriesResultTuple.getItem3();
-                                    var newUser = new User(
+                                    var newUser = new Guest(
                                             username,
                                             house,
                                             authenticationToken,
@@ -137,7 +120,7 @@ public class UserLoginService {
                 );
     }
 
-    private String emitBearerToken(UUID userId, String username, Instant issuedAt, Instant expiresAt, House house) {
+    private String emitBearerToken(UUID userId, String username, Instant issuedAt, Instant expiresAt, TetraCube house) {
         return Jwt.issuer(bearerTokenConfigurationProperties.getIssuer())
                 .upn(username)
                 .issuedAt(issuedAt)
@@ -148,5 +131,5 @@ public class UserLoginService {
                 .claim("houseId", house.getId())
                 .claim("houseName", house.getName())
                 .sign();
-    }
+    } */
 }
