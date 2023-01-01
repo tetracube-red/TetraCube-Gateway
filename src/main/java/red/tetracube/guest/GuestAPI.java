@@ -1,13 +1,12 @@
 package red.tetracube.guest;
 
 import io.smallrye.mutiny.Uni;
-import red.tetracube.core.models.BusinessValidationResult;
+import red.tetracube.guest.payloads.GuestLoginRequest;
+import red.tetracube.guest.payloads.GuestLoginResponse;
 import red.tetracube.guest.payloads.GuestSubscriptionRequest;
 import red.tetracube.guest.payloads.GuestSubscriptionResponse;
-import red.tetracube.guest.payloads.UserLoginRequest;
-import red.tetracube.guest.payloads.UserLoginResponse;
 import red.tetracube.guest.services.GuestSubscriptionService;
-import red.tetracube.guest.services.UserLoginService;
+import red.tetracube.guest.services.GuestLoginservice;
 
 import javax.enterprise.context.RequestScoped;
 import javax.validation.Valid;
@@ -21,12 +20,12 @@ import javax.ws.rs.core.MediaType;
 @RequestScoped
 public class GuestAPI {
 
-    private final UserLoginService userLoginService;
+    private final GuestLoginservice guestLoginservice;
     private final GuestSubscriptionService guestSubscriptionService;
 
-    public GuestAPI(UserLoginService userLoginService,
+    public GuestAPI(GuestLoginservice guestLoginservice,
             GuestSubscriptionService guestSubscriptionService) {
-        this.userLoginService = userLoginService;
+        this.guestLoginservice = guestLoginservice;
         this.guestSubscriptionService = guestSubscriptionService;
     }
 
@@ -36,41 +35,34 @@ public class GuestAPI {
     @Consumes(MediaType.APPLICATION_JSON)
     public Uni<GuestSubscriptionResponse> subscribeGuest(@Valid GuestSubscriptionRequest request) {
         return this.guestSubscriptionService.validateSubscriptionRequest(request)
-            .invoke(validationResult -> {
-                if (!validationResult.getSuccess()) {
-                    validationResult.mapAsResponse();
-                }
-            })
-            .flatMap(ignored -> {
-                var guestSubscriptionResponseUni = this.guestSubscriptionService.doGuestSubcription(request);
-                return guestSubscriptionResponseUni;
-            });
+                .invoke(validationResult -> {
+                    if (!validationResult.getSuccess()) {
+                        validationResult.mapAsResponse();
+                    }
+                })
+                .flatMap(ignored -> {
+                    var guestSubscriptionResponseUni = this.guestSubscriptionService.doGuestSubcription(request);
+                    return guestSubscriptionResponseUni;
+                });
     }
 
-    /*
-     * @POST
-     * 
-     * @Path("/login")
-     * 
-     * @Produces(MediaType.APPLICATION_JSON)
-     * 
-     * @Consumes(MediaType.APPLICATION_JSON)
-     * public Uni<UserLoginResponse> doUserLogin(@Valid UserLoginRequest
-     * userLoginRequest) {
-     * var validateUserUni =
-     * this.userLoginService.validateUserAndAuthenticationTokenRelation(
-     * userLoginRequest.username, userLoginRequest.authenticationCode);
-     * return validateUserUni
-     * .onItem()
-     * .invoke(validationResult -> {
-     * if (!validationResult.getSuccess()) {
-     * validationResult.mapAsResponse();
-     * }
-     * })
-     * .flatMap(validationResultSet ->
-     * this.userLoginService.tryToLoginUser(userLoginRequest)
-     * .map(Result::getResultContent)
-     * );
-     * }
-     */
+    @POST
+
+    @Path("/login")
+
+    @Produces(MediaType.APPLICATION_JSON)
+
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Uni<GuestLoginResponse> doUserLogin(@Valid GuestLoginRequest guestLoginRequest) {
+        var validateUserUni = this.guestLoginservice.validateGuestLoginRequest(guestLoginRequest);
+        return validateUserUni
+                .onItem()
+                .invoke(validationResult -> {
+                    if (!validationResult.getSuccess()) {
+                        validationResult.mapAsResponse();
+                    }
+                })
+                .flatMap(validationResultSet -> this.guestLoginservice.tryToLoginGuest(guestLoginRequest));
+    }
+
 }

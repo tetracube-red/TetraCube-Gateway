@@ -5,15 +5,10 @@ import io.smallrye.common.constraint.NotNull;
 
 import javax.validation.constraints.NotEmpty;
 
-public class UserLoginRequest {
+public class GuestLoginResponse {
 
     @JsonProperty
     @NotNull
     @NotEmpty
-    public String username;
-
-    @JsonProperty
-    @NotNull
-    @NotEmpty
-    public String authenticationCode;
+    public String token;
 }

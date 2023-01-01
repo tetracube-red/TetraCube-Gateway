@@ -38,25 +38,21 @@ public class GuestRepository {
                 .eventually(session::close));
     }
 
-    /*
-     * 
-     * 
-     * public Uni<Guest> getUserFromAuthenticationCode(String authenticationCode) {
-     * var sessionUni = sessionFactory.openSession();
-     * return sessionUni.flatMap(session ->
-     * session.createQuery("""
-     * select user
-     * from User user
-     * left join user.authenticationToken authenticationToken
-     * left join fetch user.authorizationList authorizations
-     * where authenticationToken.token = :authenticationCode
-     * """,
-     * Guest.class
-     * )
-     * .setParameter("authenticationCode", authenticationCode)
-     * .getSingleResultOrNull()
-     * .eventually(session::close)
-     * );
-     * }
-     */
+    public Uni<Guest> getByNickname(String nickname) {
+        var sessionUni = sessionFactory.openSession();
+        return sessionUni.chain(session -> {
+            return session.createQuery("""
+                    select guest
+                    from Guest guest
+                    left join fetch guest.permissionList permissions
+                    left join fetch guest.tetracube tetracube
+                    where guest.nickname = :nickname
+                    """,
+                    Guest.class)
+                    .setParameter("nickname", nickname)
+                    .getSingleResultOrNull()
+                    .eventually(session::close);
+        });
+    }
+
 }
