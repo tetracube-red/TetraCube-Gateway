@@ -1,4 +1,4 @@
-package red.tetracube.housedevicesmesh.payloads;
+package red.tetracube.smarthomegateway.payloads;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.smallrye.common.constraint.NotNull;

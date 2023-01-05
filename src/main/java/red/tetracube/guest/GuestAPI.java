@@ -47,11 +47,8 @@ public class GuestAPI {
     }
 
     @POST
-
     @Path("/login")
-
     @Produces(MediaType.APPLICATION_JSON)
-
     @Consumes(MediaType.APPLICATION_JSON)
     public Uni<GuestLoginResponse> doUserLogin(@Valid GuestLoginRequest guestLoginRequest) {
         var validateUserUni = this.guestLoginservice.validateGuestLoginRequest(guestLoginRequest);
